@@ -46,7 +46,6 @@ class ModesEnum(Enum):
 
 
 if __name__ == "__main__":
-
     system = tof.System()
     status = system.initialize()
     if not status:
@@ -110,6 +109,12 @@ if __name__ == "__main__":
     distance_scale_ir = 255.0 / max_value_of_IR_pixel
     distance_scale = 255.0 / camera_range
 
+    # Create visualizer
+    vis = o3d.visualization.Visualizer()
+    vis.create_window("PointCloud", 1600, 1600)
+    first_time_render_pc = 1
+    point_cloud = o3d.geometry.PointCloud()
+
     while True:
         # Capture frame-by-frame
         status = cameras[0].requestFrame(frame)
@@ -132,25 +137,35 @@ if __name__ == "__main__":
         depth_map = np.uint8(depth_map)
         depth_map = cv.applyColorMap(depth_map, cv.COLORMAP_RAINBOW)
 
-        # Show Depth map :
-        cv.namedWindow(WINDOW_NAME_DEPTH, cv.WINDOW_AUTOSIZE)
-        cv.imshow(WINDOW_NAME_DEPTH, depth_map)
+        # Show Depth Image
+        cv.namedWindow(WINDOW_NAME_DEPTH, cv.WINDOW_NORMAL)
+        cv.resizeWindow(WINDOW_NAME_DEPTH, 600, 600)
+        cv.imshow(WINDOW_NAME_DEPTH, depth16bits_map)
 
         img_color = cv.addWeighted(ir_map, 0.4, depth_map, 0.6, 0)
 
-        # Show Depth+IR combined map
-        cv.namedWindow(WINDOW_NAME_COLOR, cv.WINDOW_AUTOSIZE)
+        # Show Color Image
+        cv.namedWindow(WINDOW_NAME_COLOR, cv.WINDOW_NORMAL)
+        cv.resizeWindow(WINDOW_NAME_COLOR, 600, 600)
         cv.imshow(WINDOW_NAME_COLOR, img_color)
 
-        color_raw = o3d.geometry.Image(img_color)
-        depth16bits_raw = o3d.geometry.Image(depth16bits_map)
+        color_image = o3d.geometry.Image(img_color)
+        depth16bits_image = o3d.geometry.Image(depth16bits_map)
 
-        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color_raw, depth16bits_raw, 1000.0, 3.0, False)
+        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color_image, depth16bits_image, 1000.0, 3.0, False)
         pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, cameraIntrinsics)
 
         # Flip it, otherwise the pointcloud will be upside down
         pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-        o3d.visualization.draw_geometries([pcd])
+
+        point_cloud.points = pcd.points
+        point_cloud.colors = pcd.colors
+        if first_time_render_pc:
+            vis.add_geometry(point_cloud)
+            first_time_render_pc = 0
+        vis.update_geometry()
+        vis.poll_events()
+        vis.update_renderer()
 
         if cv.waitKey(1) >= 0:
             break
