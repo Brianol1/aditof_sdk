@@ -29,7 +29,12 @@ if(OPENCV_FOUND OR
     else()
         message(STATUS "The dnn example will be built (OpenCV version >= 3.4.1)")
         add_subdirectory(dnn)
-
+        if(OpenCV_VERSION VERSION_LESS "3.4.3")
+            message(WARNING "The maskR-CNN example is only available for OpenCV version >= 3.4.3! This example won't be built!")
+        else()
+            message(STATUS "The maskR-CNN example will be built (OpenCV version >= 3.4.3)")
+            add_subdirectory(maskrcnn)
+        endif()
         if(WIN32)
             include(FindOpenSSL)
             add_custom_target(copy-dll-opencv
